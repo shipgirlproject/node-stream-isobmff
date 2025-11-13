@@ -1,0 +1,10 @@
+# https://editorconfig.org
+
+root = true
+
+[*.{js,ts}]
+indent_style = tab
+
+[*.json]
+indent_style = space
+indent_size = 2

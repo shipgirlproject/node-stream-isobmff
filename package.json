@@ -1,0 +1,46 @@
+{
+  "name": "@shipgirl/stream-isobmff",
+  "version": "0.0.1",
+  "description": "Parse ISOBMFF using Node.js streams",
+  "homepage": "https://github.com/shipgirlproject/node-stream-isobmff#readme",
+  "bugs": {
+    "url": "https://github.com/shipgirlproject/node-stream-isobmff/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shipgirlproject/node-stream-isobmff.git"
+  },
+  "license": "MIT",
+  "author": "0t4u",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "engines": {
+    "node": ">=21.2.0",
+    "npm": ">=10.2.3"
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.js",
+    "lint": "eslint .",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "@shipgirl/eslint-config": "^0.4.2",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.0.1",
+    "@shipgirl/logger": "github:shipgirlproject/node-logger#c75cc42"
+  }
+}

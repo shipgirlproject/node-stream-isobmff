@@ -160,7 +160,7 @@ export class DecryptStream extends Transform {
 			if (!psshs) throw new Error('UNREACHABLE: no pssh in moov');
 
 			// remove pssh box
-			// moov.boxes = moov.boxes.filter(i => i.type !== 'pssh');
+			moov.boxes = moov.boxes.filter(i => i.type !== 'pssh');
 
 			this.decryptInit.psshs.push(...psshs);
 
@@ -169,9 +169,9 @@ export class DecryptStream extends Transform {
 		}
 
 		// get rid of it
-		// if (box.type === 'sidx') {
-		// 	return callback();
-		// }
+		if (box.type === 'sidx') {
+			return callback();
+		}
 
 		if (box.type === 'moof') {
 			if (this.prevMoof) throw new Error('UNREACHABLE: got moof before previous fragment processed');

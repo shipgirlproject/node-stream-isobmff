@@ -1,6 +1,7 @@
 import { compose, Transform } from 'node:stream';
 import type { TransformCallback, TransformOptions } from 'node:stream';
-import { ctr } from '@noble/ciphers/aes.js';
+// import { ctr } from '@noble/ciphers/aes.js';
+import { ctr } from '@noble/ciphers/webcrypto.js';
 import type { FileTypeBox } from './box/ftyp.ts';
 import type { MovieFragmentBox } from './box/moof.ts';
 import type { MovieBox } from './box/moov.ts';
@@ -76,7 +77,9 @@ export class DecryptStream extends Transform {
 		this.decryptionKey = Buffer.from(decryptionKey, 'hex');
 	}
 
-	_transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback): void {
+	// eslint-disable-next-line @typescript-eslint/no-misused-promises
+	async _transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback): Promise<void> {
+	// _transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback): void {
 		const box = parseBox(chunk, this.bytesProcessed);
 
 		if (box.type === 'ftyp') {
@@ -268,7 +271,11 @@ export class DecryptStream extends Transform {
 						iv.set(sample.iv);
 
 						const decipher = ctr(this.decryptionKey, iv);
-						const decrypted = decipher.decrypt(box.raw.subarray(sample.offset, sample.offset + sample.size));
+						const decrypted = await decipher.decrypt(box.raw.subarray(sample.offset, sample.offset + sample.size));
+
+						// js impl slow
+						// const decipher = ctr(this.decryptionKey, iv);
+						// const decrypted = decipher.decrypt(box.raw.subarray(sample.offset, sample.offset + sample.size));
 
 						// depends on openssl, unreliable
 						// const decipher = createDecipheriv('aes-128-ctr', this.decryptionKey, iv);

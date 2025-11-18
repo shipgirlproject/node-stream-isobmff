@@ -28,7 +28,7 @@
     "npm": ">=10.2.3"
   },
   "scripts": {
-    "build": "tsup --config tsup.config.js",
+    "build": "tsdown --config tsup.config.js",
     "lint": "eslint .",
     "prepare": "npm run build"
   },
@@ -36,11 +36,11 @@
     "@shipgirl/eslint-config": "^0.4.2",
     "@types/node": "^24.10.1",
     "eslint": "^9.39.1",
-    "tsup": "^8.5.0",
+    "tsdown": "^0.16.5",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "@noble/ciphers": "^2.0.1",
-    "@shipgirl/logger": "github:shipgirlproject/node-logger#c75cc42"
+    "@shipgirl/logger": "github:shipgirlproject/node-logger#ec6abf8"
   }
 }

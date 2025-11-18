@@ -2,7 +2,7 @@ import { compose, Transform } from 'node:stream';
 import type { TransformCallback, TransformOptions } from 'node:stream';
 // import { ctr } from '@noble/ciphers/aes.js';
 import { ctr } from '@noble/ciphers/webcrypto.js';
-import type { Box } from './box/box.ts';
+import type { ContainerBox, ContainerFullBox } from './box/container.ts';
 import type { FileTypeBox } from './box/ftyp.ts';
 import type { MovieFragmentBox } from './box/moof.ts';
 import type { MovieBox } from './box/moov.ts';
@@ -85,6 +85,7 @@ export class DecryptStream extends Transform {
 	async _transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback): Promise<void> {
 	// _transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback): void {
 		const box = parseBox(chunk, this.bytesProcessed);
+		this.bytesProcessed += chunk.byteLength;
 
 		if (box.type === 'ftyp') {
 			if (this.initSegment.ftyp) throw new Error('UNREACHABLE: encountered ftyp box twice');
@@ -127,7 +128,7 @@ export class DecryptStream extends Transform {
 						if (!sinf) throw new Error('UNREACHABLE: no sinf in enca');
 
 						// remove sinf box
-						box.boxes = this.removeBox(box.boxes, 'sinf');
+						box.boxes = this.removeBox(box, 'sinf');
 
 						const frma = findBoxes(sinf.boxes, 'frma')[0];
 						if (!frma) throw new Error('UNREACHABLE: no frma in sinf');
@@ -167,7 +168,7 @@ export class DecryptStream extends Transform {
 			if (!psshs) throw new Error('UNREACHABLE: no pssh in moov');
 
 			// remove pssh box
-			moov.boxes = this.removeBox(moov.boxes, 'pssh');
+			moov.boxes = this.removeBox(moov, 'pssh');
 
 			this.decryptInit.psshs.push(...psshs);
 
@@ -177,10 +178,13 @@ export class DecryptStream extends Transform {
 
 		// remove sidx box
 		if (box.type === 'sidx') {
+			logger.debug(`discard box type sidx at ${box.startPosition}`);
+
 			if (this.keepDiscardedBoxes) {
 				box.type = 'skip';
 				this.push(box.toBuffer());
 			}
+
 			return callback();
 		}
 
@@ -223,11 +227,11 @@ export class DecryptStream extends Transform {
 					const saizSize = traf.boxes.find(b => b.type === 'saiz')?.size ?? 0;
 
 					// remove senc box
-					traf.boxes = this.removeBox(traf.boxes, 'senc');
+					traf.boxes = this.removeBox(traf, 'senc');
 					// remove saio box
-					traf.boxes = this.removeBox(traf.boxes, 'saio');
+					traf.boxes = this.removeBox(traf, 'saio');
 					// remove saiz box
-					traf.boxes = this.removeBox(traf.boxes, 'saiz');
+					traf.boxes = this.removeBox(traf, 'saiz');
 
 					const removedBytes = senc.size + saioSize + saizSize;
 
@@ -309,15 +313,17 @@ export class DecryptStream extends Transform {
 			return callback();
 		}
 
-		this.bytesProcessed += chunk.byteLength;
 		this.push(box.toBuffer());
 		callback();
 	}
 
-	private removeBox(boxes: Box[], target: KnownBoxes | (string & { })) {
+	private removeBox(parent: ContainerBox | ContainerFullBox, target: KnownBoxes | (string & { })) {
+		const boxes = parent.boxes;
+
 		if (this.keepDiscardedBoxes) {
 			for (const b of boxes) {
 				if (b.type === target) {
+					logger.debug(`discard box type ${target} at ${b.startPosition} from ${parent.type}`);
 					b.type = 'skip';
 				}
 			}
@@ -325,7 +331,14 @@ export class DecryptStream extends Transform {
 			return boxes;
 		}
 
-		return boxes.filter(b => b.type !== target);
+		return boxes.filter(b => {
+			if (b.type !== target) {
+				logger.debug(`discard box type ${target} at ${b.startPosition} from ${parent.type}`);
+				return true;
+			}
+
+			return false;
+		});
 	}
 };
 

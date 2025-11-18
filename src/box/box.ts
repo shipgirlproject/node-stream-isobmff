@@ -22,7 +22,6 @@ export class Box {
 
 	protected headerToBuffer() {
 		const data = Buffer.alloc(this.headerSize);
-		// console.log(this.size)
 		data.writeUInt32BE(this.size, this.writePosition.inc(4));
 		data.write(this.type, this.writePosition.inc(4));
 		return data;
@@ -30,7 +29,15 @@ export class Box {
 
 	toBuffer() {
 		logger.debug(`serializer for ${this.type} not implemented, returning input buffer`);
-		return this.raw;
+		return Buffer.concat([
+			this.headerToBuffer(),
+			// this.type === 'skip'
+			// 	// maybe more efficient compression down the line?
+			// 	// bad performance for js, especially for large buffer
+			// 	? Buffer.alloc(this.raw.byteLength - this.headerSize)
+			// 	: this.raw.subarray(this.headerSize)
+			this.raw.subarray(this.headerSize)
+		]);
 	}
 }
 

@@ -217,7 +217,7 @@ export class DecryptStream extends Transform {
 						logger.debug(`no senc in traf for fragment ${mfhd.sequenceNumber} in track ${tfhd.trackId}, assume unencrypted`);
 						break;
 					}
-					senc.parseReadBox(tenc.defaultPerSampleIVSize);
+					senc.parseBox(tenc.defaultPerSampleIVSize);
 
 					const saioSize = traf.boxes.find(b => b.type === 'saio')?.size ?? 0;
 					const saizSize = traf.boxes.find(b => b.type === 'saiz')?.size ?? 0;

@@ -2,6 +2,7 @@ import { compose, Transform } from 'node:stream';
 import type { TransformCallback, TransformOptions } from 'node:stream';
 // import { ctr } from '@noble/ciphers/aes.js';
 import { ctr } from '@noble/ciphers/webcrypto.js';
+import type { Box } from './box/box.ts';
 import type { FileTypeBox } from './box/ftyp.ts';
 import type { MovieFragmentBox } from './box/moof.ts';
 import type { MovieBox } from './box/moov.ts';
@@ -9,7 +10,8 @@ import type { ProtectionSystemSpecificHeaderBox } from './box/pssh.ts';
 import type { ProtectionSchemeInfoBox } from './box/sinf.ts';
 import { TrackFragmentHeaderBoxFlags } from './box/tfhd.ts';
 import type { TrackExtendsBox } from './box/trex.ts';
-import { coerceBox, findBoxes, getBox, parseBox } from './parser.ts';
+import { coerceBox, findBoxes, getBox, parseBox  } from './parser.ts';
+import type { KnownBoxes } from './parser.ts';
 import { counter, logger } from './util.ts';
 import type { Sample } from './util.ts';
 // import { createDecipheriv } from 'node:crypto';
@@ -71,10 +73,12 @@ export class DecryptStream extends Transform {
 	private prevMoof?: MovieFragmentBox;
 
 	private decryptionKey: Buffer;
+	private keepDiscardedBoxes: boolean;
 
-	constructor(decryptionKey: string, opts?: TransformOptions) {
+	constructor(decryptionKey: string, keepDiscardedBoxes: boolean, opts?: TransformOptions) {
 		super(opts);
 		this.decryptionKey = Buffer.from(decryptionKey, 'hex');
+		this.keepDiscardedBoxes = keepDiscardedBoxes;
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -123,7 +127,7 @@ export class DecryptStream extends Transform {
 						if (!sinf) throw new Error('UNREACHABLE: no sinf in enca');
 
 						// remove sinf box
-						box.boxes = box.boxes.filter(i => i.type !== 'sinf');
+						box.boxes = this.removeBox(box.boxes, 'sinf');
 
 						const frma = findBoxes(sinf.boxes, 'frma')[0];
 						if (!frma) throw new Error('UNREACHABLE: no frma in sinf');
@@ -163,7 +167,7 @@ export class DecryptStream extends Transform {
 			if (!psshs) throw new Error('UNREACHABLE: no pssh in moov');
 
 			// remove pssh box
-			moov.boxes = moov.boxes.filter(i => i.type !== 'pssh');
+			moov.boxes = this.removeBox(moov.boxes, 'pssh');
 
 			this.decryptInit.psshs.push(...psshs);
 
@@ -171,8 +175,12 @@ export class DecryptStream extends Transform {
 			return callback();
 		}
 
-		// get rid of it
+		// remove sidx box
 		if (box.type === 'sidx') {
+			if (this.keepDiscardedBoxes) {
+				box.type = 'skip';
+				this.push(box.toBuffer());
+			}
 			return callback();
 		}
 
@@ -215,18 +223,17 @@ export class DecryptStream extends Transform {
 					const saizSize = traf.boxes.find(b => b.type === 'saiz')?.size ?? 0;
 
 					// remove senc box
-					traf.boxes = traf.boxes.filter(i => i.type !== 'senc');
+					traf.boxes = this.removeBox(traf.boxes, 'senc');
 					// remove saio box
-					traf.boxes = traf.boxes.filter(i => i.type !== 'saio');
+					traf.boxes = this.removeBox(traf.boxes, 'saio');
 					// remove saiz box
-					traf.boxes = traf.boxes.filter(i => i.type !== 'saiz');
+					traf.boxes = this.removeBox(traf.boxes, 'saiz');
 
 					const removedBytes = senc.size + saioSize + saizSize;
 
 					const samples: Array<Sample & { iv: Buffer; offset: number; size: number }> = [];
 					const truns = findBoxes(traf.boxes, 'trun');
 
-					// let mdatHeaderSkipped = false;
 					for (const trun of truns) {
 						let baseOffset = 0;
 						if (tfhd.baseDataOffset) {
@@ -236,9 +243,12 @@ export class DecryptStream extends Transform {
 						}
 						if (trun.dataOffset) {
 							baseOffset += trun.dataOffset - this.prevMoof.raw.byteLength;
-							trun.dataOffset -= removedBytes;
-							// lazy
-							trun.raw.writeInt32BE(trun.dataOffset, 12 + 4);
+
+							if (!this.keepDiscardedBoxes) {
+								trun.dataOffset -= removedBytes;
+								// lazy way to write size
+								trun.raw.writeInt32BE(trun.dataOffset, 12 + 4);
+							}
 						}
 
 						const mdatOffset = counter(baseOffset);
@@ -293,7 +303,7 @@ export class DecryptStream extends Transform {
 
 			this.push(this.prevMoof.toBuffer());
 			this.prevMoof = undefined;
-			// write length
+			// write length, but it should be the same as before(?)
 			box.raw.writeUInt32BE(box.raw.byteLength);
 			this.push(box.raw);
 			return callback();
@@ -303,8 +313,27 @@ export class DecryptStream extends Transform {
 		this.push(box.toBuffer());
 		callback();
 	}
+
+	private removeBox(boxes: Box[], target: KnownBoxes | (string & { })) {
+		if (this.keepDiscardedBoxes) {
+			for (const b of boxes) {
+				if (b.type === target) {
+					b.type = 'skip';
+				}
+			}
+
+			return boxes;
+		}
+
+		return boxes.filter(b => b.type !== target);
+	}
 };
 
-export function createDecryptStream(key: string) {
-	return compose(new SplitBox(), new DecryptStream(key));
+export function createDecryptStream({ key, keepDiscardedBoxes, debugMode }: {
+	key: string;
+	keepDiscardedBoxes?: boolean;
+	debugMode?: boolean;
+}) {
+	logger.setDebugMode(debugMode ?? false);
+	return compose(new SplitBox(), new DecryptStream(key, keepDiscardedBoxes ?? false));
 }

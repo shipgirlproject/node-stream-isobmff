@@ -15,12 +15,17 @@
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "types": "dist/index.d.[mts|cts|ts]",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": {
+        "default": "./dist/index.mjs",
+        "types": "./dist/index.d.mts"
+      },
+      "require": {
+        "default": "./dist/index.cjs",
+        "types": "./dist/index.d.cts"
+      }
     }
   },
   "engines": {
@@ -41,6 +46,6 @@
   },
   "dependencies": {
     "@noble/ciphers": "^2.0.1",
-    "@shipgirl/logger": "github:shipgirlproject/node-logger#ec6abf8"
+    "@shipgirl/logger": "github:shipgirlproject/node-logger#a7e53bc"
   }
 }

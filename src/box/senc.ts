@@ -36,9 +36,9 @@ export class SampleEncryptionBox extends FullBox {
 				return;
 			}
 
-			throw new Error(`[MP4] ERROR: Unexepected perSampleIVSize (expected: 0 or 8 or 16, got: ${perSampleIVSize})`);
+			throw new Error(`Unexepected perSampleIVSize (expected: 0 or 8 or 16, got: ${perSampleIVSize}, calculated: ${this.perSampleIVSize})`);
 		}
 
-		throw new Error('[MP4] ERROR: parse SampleEncryptionBox: subsamples handling not implemented');
+		throw new Error('Parse SampleEncryptionBox: subsamples handling not implemented');
 	}
 }

@@ -1,4 +1,3 @@
-import { logger } from '../util.ts';
 import { Box, FullBox } from './box.ts';
 // eslint-disable-next-line import-x/no-cycle
 import { getBoxes, writeBoxes } from './container.ts';
@@ -13,7 +12,7 @@ export class SampleDescriptionBox extends FullBox {
 		this.sampleCount = this.raw.readUInt32BE(this.position.inc(4));
 		getBoxes(this.raw.subarray(this.position.get()), startPosition + this.position.get(), this.boxes);
 		if (this.sampleCount !== this.boxes.length) {
-			logger.warn(`sample count mismatch (expect: ${this.sampleCount}, got: ${this.boxes.length})`);
+			throw new Error(`Sample count mismatch (expect: ${this.sampleCount}, got: ${this.boxes.length})`);
 		}
 	}
 

@@ -45,7 +45,7 @@ export class FullBox extends Box {
 
 		this.version = this.raw.readUInt8(this.position.inc(1));
 		if (this.version !== 0) {
-			logger.error(`unexpected version in FullBox (got: ${this.version}, expect: 0)`);
+			throw new Error(`Unexpected version in FullBox (got: ${this.version}, expect: 0)`);
 		}
 		this.flags = bitflag(readUInt24BE(this.raw, this.position.inc(3)));
 	}
